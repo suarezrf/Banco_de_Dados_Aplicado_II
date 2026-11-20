@@ -1,15 +1,15 @@
-# MongoDB e Arquitetura de Big Data — NovaCompra
+- MongoDB e Arquitetura de Big Data - NovaCompra
 
-- **Nome:** Eduardo Rafael da Silva Suarez
-- **Curso:** Sistemas de Informação
-- **Instituição:** AMF
-- **Data:** 19/11/2026
+- Nome: Eduardo Rafael da Silva Suarez
+- Curso: Sistemas de Informação
+- Instituição: AMF
+- Data: 19/11/2026
 
----
+--
 
-# Parte A — Prática no MongoDB
+- Parte A -- Prática no MongoDB
 
-## Ambiente
+- Ambiente
 
 ```bash
 docker compose up -d --wait
@@ -47,7 +47,9 @@ docker compose exec -T mongo mongosh --quiet < init.js
 Total de vendas iniciais: 8
 ```
 
-## A.1 — Preparação e inserção de dados
+- A.1 - Preparação e inserção de dados
+
+Usei o countDocuments pra confirmar que a coleção ficou com as 8 vendas e o findOne pra ver como é um documento.
 
 ```javascript
 db.vendas.countDocuments({})
@@ -87,21 +89,24 @@ db.vendas.findOne()
 }
 ```
 
-### Dois campos escalares e a estrutura incorporada
 
-RESPOSTA: (escrever)
+- Campos escalares e estrutura incorporada
 
-### Justificativa: por que os itens ficam dentro do pedido
+Campos escalares: pedidoId e data. Estrutura incorporada: o array itens, onde cada item tem produto, categoria, quantidade e precoUnitario.
 
-RESPOSTA: (escrever)
+- Por que os itens ficam dentro do pedido
 
-### Uma desvantagem dessa opção
+Os itens fazem parte do pedido e quase sempre são consultados junto com ele. Assim uma consulta só já traz o pedido inteiro, sem precisar juntar coleções, e o pedido é gravado todo de uma vez.
 
-RESPOSTA: (escrever)
+- Desvantagem
 
-## A.2 — Consultas e operações CRUD
+O nome e a categoria do produto se repetem em cada venda. Se a categoria de um produto mudar, tem que atualizar vários documentos.
 
-### Consulta
+- A.2 -- Consultas e operações CRUD
+
+- Consulta
+
+Usei o find com projeção pra mostrar só pedidoId, loja e status, coloquei _id: 0 pra esconder o _id e usei o sort pra ordenar pelo pedidoId.
 
 ```javascript
 db.vendas.find({ status: "concluida" }, { _id: 0, pedidoId: 1, loja: 1, status: 1 }).sort({ pedidoId: 1 })
@@ -118,7 +123,9 @@ db.vendas.find({ status: "concluida" }, { _id: 0, pedidoId: 1, loja: 1, status: 
 ]
 ```
 
-### Filtro
+- Filtro
+
+Coloquei os dois filtros no mesmo find, status concluida e loja Santa Maria, assim ele traz os pedidos com os itens.
 
 ```javascript
 db.vendas.find({ status: "concluida", loja: "Santa Maria" })
@@ -169,7 +176,9 @@ db.vendas.find({ status: "concluida", loja: "Santa Maria" })
 ]
 ```
 
-### Inserção e atualização
+- Inserção e atualização
+
+Inseri o P1009 como pendente e depois usei o updateOne com $set, pra mudar só o status e não mexer no resto do documento.
 
 ```javascript
 db.vendas.insertOne({
@@ -203,7 +212,9 @@ db.vendas.find({ pedidoId: "P1009" }, { _id: 0, pedidoId: 1, status: 1 })
 [ { pedidoId: 'P1009', status: 'concluida' } ]
 ```
 
-### Exclusão
+-Exclusão
+
+Usei o deleteOne com filtro no pedidoId pra apagar só o P1009 e depois conferi a contagem.
 
 ```javascript
 db.vendas.deleteOne({ pedidoId: "P1009" })
@@ -215,9 +226,13 @@ db.vendas.countDocuments({})
 8
 ```
 
-## A.3 — Aggregation Pipeline
+-A.3 - Aggregation Pipeline
 
-### Receita total por loja
+Nos dois primeiros pipelines eu usei o $match pra pegar só os pedidos concluídos e o $unwind pra separar os itens, assim cada item é calculado separado, mesmo nos pedidos que têm mais de um. Depois usei o $group pra somar, o $project pra renomear o campo e o $sort pra ordenar.
+
+- Receita total por loja
+
+Aqui eu multipliquei quantidade por precoUnitario dentro do $sum e agrupei pela loja.
 
 ```javascript
 db.vendas.aggregate([
@@ -237,7 +252,9 @@ db.vendas.aggregate([
 ]
 ```
 
-### Unidades vendidas por categoria
+-Unidades vendidas por categoria
+
+Aqui agrupei pela categoria do item e somei só a quantidade.
 
 ```javascript
 db.vendas.aggregate([
@@ -256,7 +273,9 @@ db.vendas.aggregate([
 ]
 ```
 
-### Pedidos por status
+- Pedidos por status
+
+Nesse eu não usei $match nem $unwind, porque é pra contar pedidos de todos os status e não itens. Usei $sum: 1 pra contar 1 por pedido.
 
 ```javascript
 db.vendas.aggregate([
@@ -274,13 +293,16 @@ db.vendas.aggregate([
 ]
 ```
 
-### Efeito de cancelados e pendentes nos indicadores financeiros
 
-RESPOSTA: (escrever)
+- Cancelados e pendentes
 
-## A.4 — Integridade e qualidade de dados
+Cancelados e pendentes não entram na receita por causa do $match em status: "concluida". Se entrassem, a receita ia ficar R$ 390 maior com vendas que não aconteceram ou que ainda não foram confirmadas.
 
-### Índice único e duplicidade
+-A.4 -- Integridade e qualidade de dados
+
+-Índice único e duplicidade
+
+Criei o índice único no pedidoId e depois tentei inserir o P1001 de novo pra testar.
 
 ```javascript
 db.vendas.createIndex({ pedidoId: 1 }, { unique: true })
@@ -305,7 +327,9 @@ MongoServerError: E11000 duplicate key error collection: novacompra_avaliacao.ve
 
 A contagem permaneceu em 8 após a tentativa.
 
-### Quantidade negativa (P9999)
+-Quantidade negativa (P9999)
+
+Inseri o P9999 com quantidade -2, conferi a contagem e depois apaguei ele com deleteOne.
 
 ```javascript
 db.vendas.insertOne({
@@ -323,7 +347,7 @@ db.vendas.insertOne({
 }
 ```
 
-Contagem após a inserção: `9`.
+Contagem após a inserção: 9.
 
 Limpeza:
 
@@ -337,19 +361,22 @@ db.vendas.countDocuments({})
 8
 ```
 
-### Por que a inserção foi aceita
 
-RESPOSTA: (escrever)
+- Por que a inserção foi aceita
 
-### Regra de negócio proposta para devoluções e quantidades negativas
+O MongoDB não tem esquema fixo e a coleção não tem nenhuma validação, então ele aceita qualquer valor no campo quantidade. O índice único só verifica o pedidoId.
 
-RESPOSTA: (escrever)
+- Regra para devoluções e quantidades negativas
 
-### Como evitar duplicar vendas ao reprocessar um lote
+A regra que eu proponho é que numa venda a quantidade tem que ser no mínimo 1. Devolução não entra como venda negativa, ela é registrada separada, ligada ao pedidoId da venda original, e depois é descontada da receita.
 
-RESPOSTA: (escrever)
+- Como evitar duplicar vendas no reprocessamento
 
-## Verificação final
+Eu usaria o pedidoId como chave única e faria upsert em vez de insert: se o pedido já existe só atualiza, se não existe insere. Assim rodar o mesmo lote duas vezes não duplica nada. No lakehouse dá pra fazer o mesmo com MERGE no Delta Lake.
+
+- Verificação final
+
+No final conferi que a coleção voltou pra 8 documentos e que o índice ficou criado.
 
 ```javascript
 db.vendas.countDocuments({})
@@ -361,89 +388,59 @@ db.vendas.getIndexes().map(i => i.name)
 [ '_id_', 'pedidoId_1' ]
 ```
 
----
 
-# Parte B — Arquitetura de Big Data
+--
 
-## B.1 — Fluxo da plataforma
+- Parte B - Arquitetura de Big Data
 
-```mermaid
-flowchart LR
-    subgraph FONTES["Fontes"]
-        MDB[(MongoDB<br/>vendas)]
-        ERP[ERP]
-        CRM[CRM]
-        PLAN[Planilhas<br/>CSV/JSON]
-        EVT[Eventos<br/>e-commerce / sensores]
-    end
+- B.1 -- Fluxo da plataforma
 
-    subgraph ING["Ingestão"]
-        BATCH[Batch<br/>Spark]
-        KAFKA[Kafka]
-        STREAM[Spark Structured<br/>Streaming]
-    end
+O diagrama eu fiz no Excalidraw e ele está na imagem que anexei junto com este relatório.
 
-    subgraph LAKE["Lakehouse — MinIO + Delta Lake"]
-        BRONZE[Bronze<br/>dado bruto]
-        SILVER[Silver<br/>limpo e integrado]
-        GOLD[Gold<br/>indicadores]
-    end
+Usei setas cheias pro caminho dos dados, das fontes até os dashboards. As setas pontilhadas eu usei só no Airflow, porque ele não passa dados nenhum: ele só agenda os jobs, controla a ordem deles e monitora se deu certo. Assim fica separado o que é fluxo de dados do que é orquestração.
 
-    subgraph CONS["Consumo"]
-        DUCK[DuckDB]
-        TRINO[Trino]
-        META[Metabase]
-    end
+-Papel de cada ferramenta
 
-    DASH[Dashboards, relatórios e BI]
+-Batch com Spark: ERP, CRM, planilhas e MongoDB, carregados de tempos em tempos.
+-Streaming com Kafka e Spark Structured Streaming: eventos do e-commerce e dos sensores, que chegam o tempo todo. O Kafka recebe os eventos e o Spark lê e grava na Bronze.
+-MinIO guarda os arquivos e o Delta Lake transforma eles em tabelas.
+-Airflow agenda os jobs e controla a ordem deles, mas não processa nem guarda dados.
+-DuckDB e Trino servem pra consultar os dados com SQL, e o Metabase faz os dashboards.
 
-    MDB --> BATCH
-    ERP --> BATCH
-    CRM --> BATCH
-    PLAN --> BATCH
-    EVT --> KAFKA --> STREAM
+- Coleção vendas na tabela analítica
 
-    BATCH --> BRONZE
-    STREAM --> BRONZE
-    BRONZE --> SILVER --> GOLD
+Os documentos de vendas entram como fonte, passam pela ingestão batch e chegam na Bronze do jeito que estão. Na Silver o array itens é separado e cada item vira uma linha, com os campos do pedido (pedidoId, data, loja, status) e os do item (produto, categoria, quantidade, precoUnitario).
 
-    GOLD --> DUCK
-    GOLD --> TRINO
-    DUCK --> META
-    TRINO --> META
-    META --> DASH
-
-    AIR{{Apache Airflow<br/>orquestração}}
-    AIR -.-> BATCH
-    AIR -.-> SILVER
-    AIR -.-> GOLD
-    AIR -.-> STREAM
-```
-
-**Legenda:** setas cheias (`-->`) = fluxo de dados; setas pontilhadas (`-.->`) = orquestração (Airflow agenda e coordena, não armazena nem processa os dados).
-
-**Papel de cada ferramenta:** _(escrever)_
-
-**Em qual etapa entram os documentos da coleção vendas e como seus campos viram tabela analítica:** _(escrever)_
-
-## B.2 — Medallion, qualidade e consumo
+- B.2 - Medallion, qualidade e consumo
 
 | Camada | Que dados ficam nessa camada? | Uma transformação ou regra de qualidade | Quem usa esses dados? |
 | --- | --- | --- | --- |
-| Bronze | _(escrever)_ | _(escrever)_ | _(escrever)_ |
-| Silver | _(escrever)_ | _(escrever)_ | _(escrever)_ |
-| Gold | _(escrever)_ | _(escrever)_ | _(escrever)_ |
+| Bronze | Dados brutos como vieram das fontes, inclusive pedidos cancelados | Só guarda, não altera nada | Engenheiros de dados |
+| Silver | Dados limpos, uma linha por item vendido | Remover pedidos duplicados e itens com quantidade negativa | Analistas e engenheiros de dados |
+| Gold | Indicadores prontos, como receita por loja e vendas por categoria | Somar só pedidos concluídos | Diretoria, pelo Metabase |
 
-**Por que um pedido cancelado fica na Bronze e não entra no faturamento da Gold:** _(escrever)_
+- Pedido cancelado na Bronze e na Gold
 
-**Diferença entre Parquet e Delta Lake:** _(escrever)_
+Na Bronze fica tudo que veio da fonte, pra ter o histórico e poder reprocessar. Na Gold o faturamento é só do que foi vendido de verdade, e pedido cancelado não gerou dinheiro.
 
-**Indicador no Metabase (campos e agrupamentos):** _(escrever)_
+- Parquet e Delta Lake
 
-## B.3 — Lambda ou Kappa
+Parquet é um formato de arquivo colunar, bom pra leitura de dados. O Delta Lake usa arquivos Parquet mas adiciona um log de transações, que garante que as gravações sejam completas (ACID) e guarda versões da tabela, então dá pra consultar ou voltar uma versão antiga.
 
-**Comparação (até 4 frases):** _(escrever)_
+- Indicador no Metabase
 
-**Arquitetura escolhida e justificativa:** _(escrever)_
+O indicador que eu colocaria é a receita por loja por dia. Precisa da data, da loja e do valor de cada item (quantidade x precoUnitario), filtrando só pedidos concluídos e agrupando por data e loja.
 
-**Como os dados processados chegam à Gold:** _(escrever)_
+- B.3 -- Lambda ou Kappa
+
+- Comparação
+
+A Lambda tem dois caminhos, um batch e um de streaming, então a mesma lógica fica em dois lugares. A Kappa tem um caminho só, de streaming. Pra reprocessar o histórico na Kappa, os eventos guardados são lidos de novo desde o início.
+
+- Escolha
+
+Escolhi a Kappa, porque a empresa quer dashboards atualizados com frequência e com um caminho só fica mais simples de manter. Quando tiver erro, é só corrigir o job e rodar de novo em cima dos dados guardados na Bronze.
+
+- Como os dados chegam na Gold
+
+Os dados chegam na Bronze, o Spark limpa e manda pra Silver, depois agrega e grava na Gold. O Metabase lê a Gold pelo Trino.
